@@ -113,20 +113,23 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
 
-    # wrap for video recording
+    # wrap around environment for rsl-rl first
+    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
+
+    # wrap for video recording after rsl-rl wrapper
     if args_cli.video:
+        video_folder = os.path.join(log_dir, "videos", "play")
+        os.makedirs(video_folder, exist_ok=True)
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "play"),
-            "step_trigger": lambda step: step == 0,
+            "video_folder": video_folder,
+            "step_trigger": lambda step: True,  # Record every step
             "video_length": args_cli.video_length,
             "disable_logger": True,
         }
         print("[INFO] Recording videos during training.")
+        print(f"[INFO] Video will be saved to: {video_folder}")
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
-
-    # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
@@ -166,10 +169,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             actions = policy(obs)
             # env stepping
             obs, _, _, _ = env.step(actions)
+        
+        timestep += 1
         if args_cli.video:
-            timestep += 1
             # Exit the play loop after recording one video
-            if timestep == args_cli.video_length:
+            if timestep >= args_cli.video_length:
+                print(f"[INFO] Video recording completed after {timestep} steps.")
                 break
 
         # time delay for real-time evaluation

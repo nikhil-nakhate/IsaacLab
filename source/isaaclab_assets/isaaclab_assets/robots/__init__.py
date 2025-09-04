@@ -17,10 +17,12 @@ from .franka import *
 from .humanoid import *
 from .humanoid_28 import *
 from .kinova import *
+from .lerobot import *
 from .quadcopter import *
 from .ridgeback_franka import *
 from .sawyer import *
 from .shadow_hand import *
+from .so_arm100 import *
 from .spot import *
 from .unitree import *
 from .universal_robots import *
