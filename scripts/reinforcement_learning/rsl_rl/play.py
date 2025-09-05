@@ -113,16 +113,13 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
 
-    # wrap around environment for rsl-rl first
-    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
-
-    # wrap for video recording after rsl-rl wrapper
+    # wrap for video recording first (before rsl-rl wrapper)
     if args_cli.video:
         video_folder = os.path.join(log_dir, "videos", "play")
         os.makedirs(video_folder, exist_ok=True)
         video_kwargs = {
             "video_folder": video_folder,
-            "step_trigger": lambda step: True,  # Record every step
+            "step_trigger": lambda step: step == 0,  # Record only at step 0
             "video_length": args_cli.video_length,
             "disable_logger": True,
         }
@@ -130,6 +127,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print(f"[INFO] Video will be saved to: {video_folder}")
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
+
+    # wrap around environment for rsl-rl after video wrapper
+    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
