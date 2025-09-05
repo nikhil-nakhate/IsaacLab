@@ -10,6 +10,7 @@ from isaaclab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaaclab.envs.common import ViewerCfg
 
 from isaaclab.markers.config import FRAME_MARKER_CFG  # isort: skip
 
@@ -84,14 +85,12 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
             ],
         )
 
+        # Camera configuration for better robot arm view
+        self.viewer = ViewerCfg(
+            eye=(1.2, -1.2, 0.8),  # Camera position - good overview of robot
+            lookat=(0.2, 0.0, 0.3),  # Look at robot arm area
+            origin_type="env",  # Use environment origin
+            env_index=0,  # Focus on first environment
+        )
 
-@configclass
-class SoArm100CubeLiftEnvCfg_PLAY(SoArm100CubeLiftEnvCfg):
-    def __post_init__(self):
-        # post init of parent
-        super().__post_init__()
-        # make a smaller scene for play
-        self.scene.num_envs = 50
-        self.scene.env_spacing = 2.5
-        # disable randomization for play
-        self.observations.policy.enable_corruption = False
+

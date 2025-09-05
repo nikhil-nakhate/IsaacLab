@@ -21,11 +21,3 @@ gym.register(
     disable_env_checker=True,
 )
 
-gym.register(
-    id="Isaac-Lift-Cube-SO-ARM100-Play-v0",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    kwargs={
-        "env_cfg_entry_point": joint_pos_env_cfg.SoArm100CubeLiftEnvCfg_PLAY,
-    },
-    disable_env_checker=True,
-)
