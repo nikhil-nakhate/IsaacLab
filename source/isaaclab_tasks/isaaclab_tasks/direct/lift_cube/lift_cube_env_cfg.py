@@ -10,6 +10,8 @@ from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
+from isaaclab.managers import RewardTermCfg as RewTerm
+from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import ActionTermCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
@@ -74,6 +76,21 @@ class ActionsCfg:
 
 
 @configclass
+class CommandsCfg:
+    """Command terms for the MDP."""
+
+    object_pose = mdp.UniformPoseCommandCfg(
+        asset_name="robot",
+        body_name="base",
+        resampling_time_range=(5.0, 5.0),
+        debug_vis=True,
+        ranges=mdp.UniformPoseCommandCfg.Ranges(
+            pos_x=(0.3, 0.5), pos_y=(-0.2, 0.2), pos_z=(0.20, 0.40), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
+        ),
+    )
+
+
+@configclass
 class EventCfg:
     """Configuration for the events."""
 
@@ -120,6 +137,63 @@ class ObservationsCfg:
 class RewardsCfg:
     """Configuration for the rewards"""
 
+    # Reaching: encourage the EE to approach the cube
+    reaching_cube = RewTerm(func=mdp.cube_ee_distance, params={"std": 0.1}, weight=1.0)
+
+    # Lifting: reward when cube is above threshold and within reach
+    lifting_cube = RewTerm(
+        func=mdp.cube_is_lifted,
+        params={
+            "minimal_height": 0.04,
+            "distance_threshold": 0.05,
+            "ee_frame_cfg": SceneEntityCfg("ee_frame"),
+        },
+        weight=15.0,
+    )
+
+    # Grasping: reward when close to EE and gripper closed
+    cube_grasped = RewTerm(
+        func=mdp.cube_grasped,
+        params={
+            "robot_cfg": SceneEntityCfg("robot"),
+            "ee_frame_cfg": SceneEntityCfg("ee_frame"),
+            "cube_cfg": SceneEntityCfg("cube"),
+            "diff_threshold": 0.05,
+            "gripper_close_threshold": 0.6,
+        },
+        weight=5.0,
+    )
+
+    # Goal tracking once lifted
+    cube_goal_tracking = RewTerm(
+        func=mdp.cube_goal_distance,
+        params={"std": 0.3, "minimal_height": 0.04, "command_name": "object_pose"},
+        weight=16.0,
+    )
+
+    cube_goal_tracking_fine_grained = RewTerm(
+        func=mdp.cube_goal_distance,
+        params={"std": 0.05, "minimal_height": 0.04, "command_name": "object_pose"},
+        weight=5.0,
+    )
+
+    # Regularization
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
+    joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-1e-4, params={"asset_cfg": SceneEntityCfg("robot")})
+
+
+@configclass
+class CurriculumCfg:
+    """Curriculum to anneal regularization weights."""
+
+    action_rate = CurrTerm(
+        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-1, "num_steps": 10000}
+    )
+
+    joint_vel = CurrTerm(
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
+    )
+
 
 @configclass
 class TerminationsCfg:
@@ -143,9 +217,11 @@ class LiftCubeEnvCfg(ManagerBasedRLEnvCfg):
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
     events: EventCfg = EventCfg()
+    commands: CommandsCfg = CommandsCfg()
 
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
+    curriculum: CurriculumCfg = CurriculumCfg()
 
     recorders: RecordTerm = RecordTerm()
 

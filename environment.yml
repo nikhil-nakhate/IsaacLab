@@ -1,3 +1,4 @@
+name: leisaac
 channels:
   - conda-forge
   - defaults

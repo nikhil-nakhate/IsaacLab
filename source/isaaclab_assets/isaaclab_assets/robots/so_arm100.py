@@ -30,13 +30,13 @@ SO_ARM100_CFG = ArticulationCfg(
         usd_path=f"{_ASSETS_ROOT}/Robots/so_arm100/so_100.usd",
         activate_contact_sensors=False,                 # Adjust based on need
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
-            disable_gravity=False,
+            disable_gravity=True,
             max_depenetration_velocity=5.0,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=True,
             solver_position_iteration_count=8,
-            solver_velocity_iteration_count=0,
+            solver_velocity_iteration_count=1,
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
@@ -47,7 +47,7 @@ SO_ARM100_CFG = ArticulationCfg(
             "Elbow":                0.0,
             "Wrist_Pitch":          0.0,
             "Wrist_Roll":           0.0,
-            "Gripper":              0.3,        # Middle position to make movement more apparent
+            "Gripper":              0.03,       # Open position safely within joint limits
         },
         # Set initial joint velocities to zero
         joint_vel={".*": 0.0},
@@ -61,7 +61,7 @@ SO_ARM100_CFG = ArticulationCfg(
         # Jaw               moves: Only moving jaw              (~0.034kg)
         "arm": ImplicitActuatorCfg(
             joint_names_expr=["Shoulder_.*", "Elbow", "Wrist_.*"],
-            effort_limit_sim=1.9,
+            effort_limit_sim=2.94,
             velocity_limit_sim=1.5,
             stiffness={
                 "Shoulder_Rotation":    200.0,  # Highest - moves all mass
@@ -101,7 +101,7 @@ SO_ARM100_ROS2_CFG = ArticulationCfg(
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=True,
             solver_position_iteration_count=8,
-            solver_velocity_iteration_count=0,
+            solver_velocity_iteration_count=1,
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
@@ -112,7 +112,7 @@ SO_ARM100_ROS2_CFG = ArticulationCfg(
             "elbow_joint":          0.0,
             "wrist_pitch_joint":    0.0,
             "wrist_roll_joint":     0.0,
-            "jaw_joint":            0.1,        # Middle position to make movement more apparent
+            "jaw_joint":            0.03,       # Open position safely within joint limits
         },
         # Set initial joint velocities to zero
         joint_vel={".*": 0.0},
@@ -126,7 +126,7 @@ SO_ARM100_ROS2_CFG = ArticulationCfg(
         # Jaw               moves: Only moving jaw              (~0.034kg)
         "arm": ImplicitActuatorCfg(
             joint_names_expr=["shoulder_.*", "elbow_joint", "wrist_.*"],
-            effort_limit_sim=1.9,
+            effort_limit_sim=2.94,
             velocity_limit_sim=1.5,
             stiffness={
                 "shoulder_pan_joint":   200.0,  # Highest - moves all mass

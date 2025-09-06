@@ -11,3 +11,4 @@ from isaaclab.envs.mdp.actions import reset_scene_to_default
 
 from .terminations import *
 from .observations import *
+from .rewards import *

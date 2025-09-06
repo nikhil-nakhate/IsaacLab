@@ -3,6 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.sensors import FrameTransformerCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
@@ -37,32 +38,32 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
         self.actions.arm_action = mdp.JointPositionActionCfg(
             asset_name="robot", 
             joint_names=["Shoulder_Rotation", "Shoulder_Pitch", "Elbow", "Wrist_Pitch", "Wrist_Roll"], 
-            scale=0.5, use_default_offset=True
+            scale=0.3, use_default_offset=True
         )
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
             joint_names=["Gripper"],
-            open_command_expr={"Gripper": 0.5},
-            close_command_expr={"Gripper": 0.0},
+            open_command_expr={"Gripper": 0.03},
+            close_command_expr={"Gripper": 0.5},
         )
         # Set the body name for the end effector
         self.commands.object_pose.body_name = ["Fixed_Gripper"]
 
-        # Set Cube as object
+        # Set Cube as object - moved closer to robot for easier reach
         self.scene.object = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/Object",
             init_state=RigidObjectCfg.InitialStateCfg(pos=[0.2, 0.0, 0.015], rot=[1, 0, 0, 0]),
             spawn=UsdFileCfg(
                 usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
-                scale=(0.3, 0.3, 0.3),
+                scale=(0.4, 0.4, 0.4),
                 rigid_props=RigidBodyPropertiesCfg(
                     solver_position_iteration_count=16,
                     solver_velocity_iteration_count=1,
                     max_angular_velocity=1000.0,
                     max_linear_velocity=1000.0,
                     max_depenetration_velocity=5.0,
-                    disable_gravity=False,
                 ),
+                mass_props=sim_utils.MassPropertiesCfg(density=30.0),
             ),
         )
 
@@ -92,5 +93,4 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
             origin_type="env",  # Use environment origin
             env_index=0,  # Focus on first environment
         )
-
 

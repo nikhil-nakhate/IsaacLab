@@ -130,6 +130,60 @@ class EventCfg:
         },
     )
 
+    # Ensure gripper starts open on every reset (SO-ARM100: open=0.0)
+    open_gripper_on_reset = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Gripper"]),
+            "position": 0.0,
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+
+    # Pre-grasp posture: place wrist/elbow for a top-down pinch approach
+    pregrasp_shoulder_pitch = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Shoulder_Pitch"]),
+            "position": 0.35,  # ~20 degrees forward
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+    pregrasp_elbow = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Elbow"]),
+            "position": 0.85,  # ~49 degrees to bring hand near object
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+    pregrasp_wrist_pitch = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Wrist_Pitch"]),
+            "position": -0.75,  # tilt down towards table
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+    pregrasp_wrist_roll = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Wrist_Roll"]),
+            "position": 0.0,  # neutral roll aligns jaws straight
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+
 
 @configclass
 class RewardsCfg:
@@ -137,7 +191,28 @@ class RewardsCfg:
 
     reaching_object = RewTerm(func=mdp.object_ee_distance, params={"std": 0.1}, weight=1.0)
 
-    lifting_object = RewTerm(func=mdp.object_is_lifted, params={"minimal_height": 0.04}, weight=15.0)
+    # Require proximity to EE when rewarding lift to avoid bounce rewards
+    lifting_object = RewTerm(
+        func=mdp.object_is_lifted,
+        params={
+            "minimal_height": 0.04,
+            "distance_threshold": 0.05,
+            "ee_frame_cfg": SceneEntityCfg("ee_frame"),
+        },
+        weight=15.0,
+    )
+
+    object_grasped = RewTerm(
+        func=mdp.object_grasp,
+        params={
+            "robot_cfg": SceneEntityCfg("robot"),
+            "ee_frame_cfg": SceneEntityCfg("ee_frame"),
+            "object_cfg": SceneEntityCfg("object"),
+            "diff_threshold": 0.05,
+            "gripper_close_threshold": 0.6,
+        },
+        weight=5.0,
+    )
 
     object_goal_tracking = RewTerm(
         func=mdp.object_goal_distance,
@@ -176,12 +251,13 @@ class TerminationsCfg:
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
+    # Use milder regularization early to not suppress gripper exploration
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-1, "num_steps": 10000}
+        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -5e-3, "num_steps": 10000}
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -5e-3, "num_steps": 10000}
     )
 
 
