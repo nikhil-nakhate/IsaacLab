@@ -23,6 +23,7 @@ from .ridgeback_franka import *
 from .sawyer import *
 from .shadow_hand import *
 from .so_arm100 import *
+from .ucr_humanoid import *
 from .spot import *
 from .unitree import *
 from .universal_robots import *
