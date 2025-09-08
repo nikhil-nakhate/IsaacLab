@@ -61,7 +61,11 @@ def auto_close_gripper_on_proximity(
     if env_ids is None:
         env_ids = torch.arange(env.num_envs, device=robot.device)
 
-    ee_pos = ee_frame.data.target_pos_w[..., 0, :]
+    ee_targets = ee_frame.data.target_pos_w
+    if ee_targets.shape[-2] > 1:
+        ee_pos = ee_targets.mean(dim=-2)
+    else:
+        ee_pos = ee_targets[:, 0, :]
     obj_pos = obj.data.root_pos_w
     dist = torch.linalg.vector_norm(obj_pos - ee_pos, dim=1)
     sel = env_ids[dist[env_ids] < diff_threshold]
@@ -100,7 +104,11 @@ def auto_open_gripper_when_far(
     if env_ids is None:
         env_ids = torch.arange(env.num_envs, device=robot.device)
 
-    ee_pos = ee_frame.data.target_pos_w[..., 0, :]
+    ee_targets = ee_frame.data.target_pos_w
+    if ee_targets.shape[-2] > 1:
+        ee_pos = ee_targets.mean(dim=-2)
+    else:
+        ee_pos = ee_targets[:, 0, :]
     obj_pos = obj.data.root_pos_w
     dist = torch.linalg.vector_norm(obj_pos - ee_pos, dim=1)
     sel = env_ids[dist[env_ids] > distance_threshold]

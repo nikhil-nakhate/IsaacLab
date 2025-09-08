@@ -141,7 +141,7 @@ class RewardsCfg:
         func=mdp.object_is_lifted,
         params={
             "minimal_height": 0.04,
-            "distance_threshold": 0.05,  # or some task-appropriate threshold
+            "distance_threshold": 0.01,  # or some task-appropriate threshold
             "ee_frame_cfg": SceneEntityCfg("ee_frame"),
         },
         weight=15.0,
@@ -153,8 +153,8 @@ class RewardsCfg:
             "robot_cfg": SceneEntityCfg("robot"),
             "ee_frame_cfg": SceneEntityCfg("ee_frame"),
             "object_cfg": SceneEntityCfg("object"),
-            "diff_threshold": 0.05,
-            "gripper_close_threshold": 0.05,
+            "diff_threshold": 0.01,
+            "gripper_close_threshold": 0.03,
         },
         weight=5.0,
     )

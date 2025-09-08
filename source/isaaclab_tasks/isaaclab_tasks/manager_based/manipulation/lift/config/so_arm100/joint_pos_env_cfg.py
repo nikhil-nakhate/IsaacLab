@@ -10,6 +10,7 @@ from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 from isaaclab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils import configclass
+from isaaclab.managers import EventTermCfg as EventTerm, SceneEntityCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.envs.common import ViewerCfg
 
@@ -74,7 +75,7 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
         marker_cfg.prim_path = "/Visuals/FrameTransformer"
         self.scene.ee_frame = FrameTransformerCfg(
             prim_path="{ENV_REGEX_NS}/Robot/Base",
-            debug_vis=False,
+            debug_vis=True,
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
@@ -93,4 +94,58 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
             lookat=(0.2, 0.0, 0.3),  # Look at robot arm area
             origin_type="env",  # Use environment origin
             env_index=0,  # Focus on first environment
+        )
+
+        # Set a safe pre-grasp posture that places the EE well above the table
+        # (approx. ~10 cm depending on USD axes). These values are known-stable
+        # from prior config and avoid self-collision.
+        self.events.pregrasp_shoulder_pitch = EventTerm(
+            func=mdp.set_joint_position_on_reset,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["Shoulder_Pitch"]),
+                "position": 0.35,
+                "velocity": 0.0,
+                "set_targets": True,
+            },
+        )
+        self.events.pregrasp_elbow = EventTerm(
+            func=mdp.set_joint_position_on_reset,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["Elbow"]),
+                "position": 0.85,
+                "velocity": 0.0,
+                "set_targets": True,
+            },
+        )
+        self.events.pregrasp_wrist_pitch = EventTerm(
+            func=mdp.set_joint_position_on_reset,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["Wrist_Pitch"]),
+                "position": -0.75,
+                "velocity": 0.0,
+                "set_targets": True,
+            },
+        )
+        self.events.pregrasp_wrist_roll = EventTerm(
+            func=mdp.set_joint_position_on_reset,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["Wrist_Roll"]),
+                "position": 0.0,
+                "velocity": 0.0,
+                "set_targets": True,
+            },
+        )
+        self.events.open_gripper_on_reset = EventTerm(
+            func=mdp.set_joint_position_on_reset,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=["Gripper"]),
+                "position": 0.5,
+                "velocity": 0.0,
+                "set_targets": True,
+            },
         )

@@ -25,8 +25,8 @@ class SoArm100CubeLiftIKRelEnvCfg(joint_pos_env_cfg.SoArm100CubeLiftEnvCfg):
                 command_type="pose", use_relative_mode=True, ik_method="dls"
             ),
             scale=0.5,
-            # Align the TCP slightly forward and up from the fixed gripper frame (matches SoArm100 frame cfg)
-            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.01, 0.0, 0.1]),
+            # Align TCP with EE frame (URDF-based heuristic toward pinch center at tips)
+            body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[-0.01, -0.09, 0.0]),
         )
 
 
@@ -38,4 +38,3 @@ class SoArm100CubeLiftIKRelEnvCfg_PLAY(SoArm100CubeLiftIKRelEnvCfg):
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
         self.observations.policy.enable_corruption = False
-
