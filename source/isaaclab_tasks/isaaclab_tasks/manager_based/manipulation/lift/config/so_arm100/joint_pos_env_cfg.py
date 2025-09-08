@@ -43,8 +43,9 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
             joint_names=["Gripper"],
-            open_command_expr={"Gripper": 0.03},
-            close_command_expr={"Gripper": 0.5},
+            # For SO-ARM100, lower value closes the jaw, higher opens
+            open_command_expr={"Gripper": 0.5},
+            close_command_expr={"Gripper": 0.0},
         )
         # Set the body name for the end effector
         self.commands.object_pose.body_name = ["Fixed_Gripper"]
@@ -63,7 +64,7 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
                     max_linear_velocity=1000.0,
                     max_depenetration_velocity=5.0,
                 ),
-                mass_props=sim_utils.MassPropertiesCfg(density=30.0),
+                mass_props=sim_utils.MassPropertiesCfg(density=3.0),
             ),
         )
 
@@ -93,4 +94,3 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
             origin_type="env",  # Use environment origin
             env_index=0,  # Focus on first environment
         )
-

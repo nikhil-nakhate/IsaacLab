@@ -47,7 +47,7 @@ SO_ARM100_CFG = ArticulationCfg(
             "Elbow":                0.0,
             "Wrist_Pitch":          0.0,
             "Wrist_Roll":           0.0,
-            "Gripper":              0.03,       # Open position safely within joint limits
+            "Gripper":              0.5,       # Open position safely within joint limits
         },
         # Set initial joint velocities to zero
         joint_vel={".*": 0.0},
@@ -112,7 +112,7 @@ SO_ARM100_ROS2_CFG = ArticulationCfg(
             "elbow_joint":          0.0,
             "wrist_pitch_joint":    0.0,
             "wrist_roll_joint":     0.0,
-            "jaw_joint":            0.03,       # Open position safely within joint limits
+            "jaw_joint":            0.1,       # Open position safely within joint limits
         },
         # Set initial joint velocities to zero
         joint_vel={".*": 0.0},

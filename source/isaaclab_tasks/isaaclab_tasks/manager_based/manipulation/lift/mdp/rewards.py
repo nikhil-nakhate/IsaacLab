@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
-def object_is_lifted(
+def object_is_lifted22(
     env: ManagerBasedRLEnv,
     minimal_height: float,
     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
@@ -45,8 +45,45 @@ def object_is_lifted(
     within_reach = torch.norm(obj_pos - ee_pos, dim=1) < distance_threshold
     return (height_ok & within_reach).float()
 
+def object_is_lifted(
+    env: ManagerBasedRLEnv,
+    minimal_height: float,
+    distance_threshold: float,
+    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
+) -> torch.Tensor:
+    """
+    Reward the agent for lifting the object above a minimal height.
 
-def object_ee_distance(
+    *Only if* it is within a certain distance from the end-effector.
+    """
+    object: RigidObject = env.scene[object_cfg.name]
+    ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
+
+    # Get object height (z position in world frame)
+    obj_height = object.data.root_pos_w[:, 2]  # (num_envs,)
+
+    # Get positions
+    obj_pos = object.data.root_pos_w  # (num_envs, 3)
+    ee_pos = ee_frame.data.target_pos_w[..., 0, :]  # (num_envs, 3)
+
+    # Compute Euclidean distance between object and end-effector
+    dist = torch.norm(obj_pos - ee_pos, dim=1)  # (num_envs,)
+
+    # Reward is 1.0 if object is above minimal height AND within_reach to EE
+    lifted = obj_height > minimal_height
+    within_reach = dist < distance_threshold
+
+    reward = torch.where(lifted & within_reach, 1.0, 0.0)
+
+    # print(f"lifted: {lifted}")
+    # print(f"within_reach_to_ee: {within_reach}")
+    # print(f"lift reward: {reward}")
+
+    return reward
+
+
+def object_ee_distance22(
     env: ManagerBasedRLEnv,
     std: float,
     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
@@ -69,8 +106,25 @@ def object_ee_distance(
 
     return 1 - torch.tanh(object_ee_distance / std)
 
+def object_ee_distance(
+    env: ManagerBasedRLEnv,
+    std: float = 0.3,  # standard deviation
+    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
+) -> torch.Tensor:
+    object: RigidObject = env.scene[object_cfg.name]
+    ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
 
-def object_grasp(
+    cube_pos_w = object.data.root_pos_w
+    ee_w = ee_frame.data.target_pos_w[..., 0, :]
+    distance = torch.norm(cube_pos_w - ee_w, dim=1)
+
+    reward = torch.exp(-0.5 * (distance / std) ** 2)
+
+    return reward
+
+
+def object_grasp33(
     env: ManagerBasedRLEnv,
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
@@ -161,13 +215,14 @@ def gripper_close_when_near_object(
     return (is_near * close_action_reward).float()
 
 
-def object_grasp(
+def object_grasp22(
     env: ManagerBasedRLEnv,
     robot_cfg: SceneEntityCfg,
     ee_frame_cfg: SceneEntityCfg,
     object_cfg: SceneEntityCfg,
     diff_threshold: float = 0.03,
-    gripper_close_threshold: float = 0.6,
+    gripper_close_threshold: float = 0.03,
+    closed_below: bool = True,
 ) -> torch.Tensor:
     """
     Reward function for detecting if the object is being grasped (robotis version).
@@ -183,13 +238,49 @@ def object_grasp(
     end_effector_pos = ee_frame.data.target_pos_w[:, 0, :]
     pose_diff = torch.linalg.vector_norm(object_pos - end_effector_pos, dim=1)
 
-    # Check if gripper joints are closed beyond threshold
-    # For SO-ARM100, we only have one gripper joint
+    # Check if gripper joint indicates a closed state
+    # For SO-ARM100, we only have one gripper joint and smaller values mean more closed.
     gripper_joint_pos = robot.data.joint_pos[:, -1]  # Last joint is gripper
-    gripper_closed = gripper_joint_pos >= gripper_close_threshold
+    if closed_below:
+        gripper_closed = gripper_joint_pos <= gripper_close_threshold
+    else:
+        gripper_closed = gripper_joint_pos >= gripper_close_threshold
 
     # Return reward if both conditions are met
-    return (pose_diff <= diff_threshold) & gripper_closed
+    return ((pose_diff <= diff_threshold) & gripper_closed).float()
+
+
+def object_grasp(
+    env: ManagerBasedRLEnv,
+    robot_cfg: SceneEntityCfg,
+    ee_frame_cfg: SceneEntityCfg,
+    object_cfg: SceneEntityCfg,
+    diff_threshold: float = 0.03,
+    gripper_close_threshold: float = 0.2,
+) -> torch.Tensor:
+    """
+    Reward function for detecting if the object is being grasped.
+
+    Combines end-effector proximity and gripper closure conditions.
+    """
+    robot: Articulation = env.scene[robot_cfg.name]
+    ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
+    object: RigidObject = env.scene[object_cfg.name]
+
+    # Compute the distance between end-effector and object
+    object_pos = object.data.root_pos_w
+    end_effector_pos = ee_frame.data.target_pos_w[:, 0, :]
+    pose_diff = torch.linalg.vector_norm(object_pos - end_effector_pos, dim=1)
+
+    # Check if gripper joints are closed beyond threshold
+    gripper_closed = robot.data.joint_pos[:, -1] <= gripper_close_threshold
+
+    # Combine both conditions
+    is_grasped = torch.logical_and(pose_diff < diff_threshold, gripper_closed)
+
+    # print(f"object grasp reward: {is_grasped.float()}")
+
+    return is_grasped.float()
 
 
 def object_goal_distance(

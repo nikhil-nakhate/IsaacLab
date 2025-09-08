@@ -78,7 +78,7 @@ class CommandsCfg:
         resampling_time_range=(5.0, 5.0),
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.3, 0.5), pos_y=(-0.2, 0.2), pos_z=(0.20, 0.40), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
+            pos_x=(0.4, 0.6), pos_y=(-0.25, 0.25), pos_z=(0.25, 0.5), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
         ),
     )
 
@@ -124,9 +124,99 @@ class EventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-0.1, 0.1), "y": (-0.2, 0.2), "z": (0.0, 0.0)},
+            "pose_range": {"x": (-0.1, 0.1), "y": (-0.25, 0.25), "z": (0.0, 0.0)},
             "velocity_range": {},
             "asset_cfg": SceneEntityCfg("object", body_names="Object"),
+        },
+    )
+
+    # Ensure gripper starts open on every reset (SO-ARM100: open=0.0)
+    open_gripper_on_reset = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Gripper"]),
+            # Start episodes with gripper open (matches open_command_expr)
+            "position": 0.03,
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+
+    # Pre-grasp posture: place wrist/elbow for a top-down pinch approach
+    pregrasp_shoulder_pitch = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Shoulder_Pitch"]),
+            "position": 0.35,  # ~20 degrees forward
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+    pregrasp_elbow = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Elbow"]),
+            "position": 0.85,  # ~49 degrees to bring hand near object
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+    pregrasp_wrist_pitch = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Wrist_Pitch"]),
+            "position": -0.75,  # tilt down towards table
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+    pregrasp_wrist_roll = EventTerm(
+        func=mdp.set_joint_position_on_reset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Wrist_Roll"]),
+            "position": 0.0,  # neutral roll aligns jaws straight
+            "velocity": 0.0,
+            "set_targets": True,
+        },
+    )
+
+    # Assist training: nudge gripper closed when EE is near object
+    assist_close_near_object = EventTerm(
+        func=mdp.auto_close_gripper_on_proximity,
+        mode="interval",
+        # every 0.1s in global time
+        is_global_time=True,
+        interval_range_s=(0.1, 0.1),
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Gripper"]),
+            "ee_frame_cfg": SceneEntityCfg("ee_frame"),
+            "object_cfg": SceneEntityCfg("object"),
+            "diff_threshold": 0.05,
+            # close target consistent with close_command_expr
+            "close_value": 0.0,
+        },
+    )
+
+    # Ensure gripper stays open on approach when EE is far from object
+    assist_open_when_far = EventTerm(
+        func=mdp.auto_open_gripper_when_far,
+        mode="interval",
+        # every 0.1s in global time
+        is_global_time=True,
+        interval_range_s=(0.1, 0.1),
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Gripper"]),
+            "ee_frame_cfg": SceneEntityCfg("ee_frame"),
+            "object_cfg": SceneEntityCfg("object"),
+            # a bit larger than the close threshold to avoid oscillation
+            "distance_threshold": 0.08,
+            # open target consistent with open_command_expr
+            "open_value": 0.20,
         },
     )
 
@@ -137,11 +227,23 @@ class RewardsCfg:
 
     reaching_object = RewTerm(func=mdp.object_ee_distance, params={"std": 0.1}, weight=1.0)
 
+    # Encourage issuing close action when near object (helps break symmetry)
+    close_when_near = RewTerm(
+        func=mdp.gripper_close_when_near_object,
+        params={
+            "ee_frame_cfg": SceneEntityCfg("ee_frame"),
+            "object_cfg": SceneEntityCfg("object"),
+            "distance_threshold": 0.05,
+        },
+        weight=0.75,
+    )
+
+    # Require proximity to EE when rewarding lift to avoid bounce rewards
     lifting_object = RewTerm(
         func=mdp.object_is_lifted,
         params={
             "minimal_height": 0.04,
-            "distance_threshold": 0.05,  # or some task-appropriate threshold
+            "distance_threshold": 0.05,
             "ee_frame_cfg": SceneEntityCfg("ee_frame"),
         },
         weight=15.0,
@@ -154,7 +256,9 @@ class RewardsCfg:
             "ee_frame_cfg": SceneEntityCfg("ee_frame"),
             "object_cfg": SceneEntityCfg("object"),
             "diff_threshold": 0.05,
-            "gripper_close_threshold": 0.05,
+            # For SO-ARM100, closed corresponds to low joint value
+            "gripper_close_threshold": 0.03,
+            # "closed_below": True,
         },
         weight=5.0,
     )
@@ -196,12 +300,13 @@ class TerminationsCfg:
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
+    # Use milder regularization early to not suppress gripper exploration
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-1, "num_steps": 10000}
+        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -5e-3, "num_steps": 10000}
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -5e-3, "num_steps": 10000}
     )
 
 
@@ -235,6 +340,7 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = 0.01  # 100Hz
         self.sim.render_interval = self.decimation
 
+        self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 4
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024
