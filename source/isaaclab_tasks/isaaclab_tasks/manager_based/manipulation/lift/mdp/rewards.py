@@ -128,17 +128,18 @@ def object_ee_distance(
     #     ee_w = ee_targets[:, 0, :]
 
     object_targets = object.data.root_pos_w
-    ee_targets = ee_frame.data.target_pos_w.permute(1,0,2)
+    cube_pos_w = ee_frame.data.target_pos_w.permute(1,0,2)
     # print("Object pos", object_targets)
     # print("ee_pos", ee_targets)
-    if ee_targets.shape[-2] > 1:
-        end_effector_pos = ee_targets.mean(dim=-2)
-        cube_pos_w = object_targets.mean(dim=-2)
-    else:
-        end_effector_pos = ee_targets[0, :]
-        cube_pos_w = object_targets[0, :]
-    distance = torch.norm(cube_pos_w - end_effector_pos, dim=1)
-    print("Distance", distance)
+    # if ee_targets.shape[-2] > 1:
+    #     end_effector_pos = ee_targets.mean(dim=-2)
+    #     cube_pos_w = object_targets.mean(dim=-2)
+    # else:
+    #     end_effector_pos = ee_targets[0, :]
+    #     cube_pos_w = object_targets[0, :]
+
+    distance = torch.linalg.vector_norm(cube_pos_w - object_targets, dim=-1)[0]
+    # print("Distance", distance)
 
     reward = torch.exp(-0.5 * (distance / std) ** 2)
 
@@ -294,18 +295,18 @@ def object_grasp(
 
     # Compute the distance between end-effector and object
     object_targets = object.data.root_pos_w
-    ee_targets = ee_frame.data.target_pos_w.permute(1,0,2)
+    end_effector_pos = ee_frame.data.target_pos_w.permute(1,0,2)
     # print("Object pos", object_targets)
     # print("ee_pos", ee_targets)
-    if ee_targets.shape[-2] > 1:
-        end_effector_pos = ee_targets.mean(dim=-2)
-        object_pos = object_targets.mean(dim=-2)
-    else:
-        end_effector_pos = ee_targets[0, :]
-        object_pos = object_targets[0, :]
+    # if ee_targets.shape[-2] > 1:
+    #     end_effector_pos = ee_targets.mean(dim=-2)
+    #     object_pos = object_targets.mean(dim=-2)
+    # else:
+    #     end_effector_pos = ee_targets[0, :]
+    #     object_pos = object_targets[0, :]
     # print("ee_mean pos", end_effector_pos)
-    pose_diff = torch.linalg.vector_norm(object_pos - end_effector_pos)
-    print("Pose_diff", pose_diff)
+    pose_diff = torch.linalg.vector_norm(object_targets - end_effector_pos, dim=-1)[0]
+    # print("Pose_diff", pose_diff)
     # Check if gripper joints are closed beyond threshold
     gripper_closed = robot.data.joint_pos[:, -1] <= gripper_close_threshold
 
