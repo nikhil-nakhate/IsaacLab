@@ -66,14 +66,16 @@ def object_is_lifted(
     # Get positions
     obj_pos = object.data.root_pos_w  # (num_envs, 3)
     # Use average if multiple EE target frames are provided (e.g., fingertips)
-    ee_targets = ee_frame.data.target_pos_w
-    if ee_targets.shape[-2] > 1:
-        ee_pos = ee_targets.mean(dim=-2)
-    else:
-        ee_pos = ee_targets[:, 0, :]
+    ee_targets = ee_frame.data.target_pos_w.permute(1,0,2)
+    # if ee_targets.shape[-2] > 1:
+    #     ee_pos = ee_targets.mean(dim=-2)
+    # else:
+    #     ee_pos = ee_targets[:, 0, :]
 
     # Compute Euclidean distance between object and end-effector
-    dist = torch.norm(obj_pos - ee_pos, dim=1)  # (num_envs,)
+    # print("ee targets", ee_targets.shape)
+    dist = torch.norm(obj_pos - ee_targets, dim=-1)[0]  # (num_envs,)
+    # print("Dist", dist)
 
     # Reward is 1.0 if object is above minimal height AND within_reach to EE
     lifted = obj_height > minimal_height

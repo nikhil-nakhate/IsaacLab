@@ -82,7 +82,7 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
                     prim_path="{ENV_REGEX_NS}/Robot/Fixed_Gripper",
                     name="end_effector",
                     offset=OffsetCfg(
-                        pos=[0.01, 0.0, 0.1],
+                        pos=[0.02, 0.0, 0.1],
                     ),
                 ),
             ],
