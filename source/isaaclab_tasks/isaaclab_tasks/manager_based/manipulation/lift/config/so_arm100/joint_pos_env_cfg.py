@@ -10,7 +10,7 @@ from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 from isaaclab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils import configclass
-from isaaclab.managers import EventTermCfg as EventTerm, SceneEntityCfg
+from isaaclab.managers import EventTermCfg as EventTerm, SceneEntityCfg, CurriculumTermCfg as CurrTerm
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.envs.common import ViewerCfg
 
@@ -149,3 +149,53 @@ class SoArm100CubeLiftEnvCfg(LiftEnvCfg):
                 "set_targets": True,
             },
         )
+
+        # # -----------------------
+        # # Curriculum: Reach → Lift
+        # # Start with strong reaching-only signals; enable lift + grasp later.
+        # # -----------------------
+        # # Initial reward weights (reaching high, others off)
+        # self.rewards.reaching_object.weight = 3.0
+        # # keep gripper open on approach initially
+        # if hasattr(self.rewards, "gripper_open"):
+        #     self.rewards.gripper_open.weight = 3.0
+        # self.rewards.lifting_object.weight = 0.0
+        # self.rewards.object_grasped.weight = 0.0
+        # # Defer goal tracking until after lift behavior emerges
+        # if hasattr(self.rewards, "object_goal_tracking"):
+        #     self.rewards.object_goal_tracking.weight = 0.0
+        # if hasattr(self.rewards, "object_goal_tracking_fine_grained"):
+        #     self.rewards.object_goal_tracking_fine_grained.weight = 0.0
+
+        # # After 10k steps, emphasize lifting and reduce reach shaping
+        # self.curriculum.enable_lifting = CurrTerm(
+        #     func=mdp.modify_reward_weight,
+        #     params={"term_name": "lifting_object", "weight": 15.0, "num_steps": 10000},
+        # )
+        # self.curriculum.enable_grasp = CurrTerm(
+        #     func=mdp.modify_reward_weight,
+        #     params={"term_name": "object_grasped", "weight": 5.0, "num_steps": 10000},
+        # )
+        # self.curriculum.reduce_reach_weight = CurrTerm(
+        #     func=mdp.modify_reward_weight,
+        #     params={"term_name": "reaching_object", "weight": 0.5, "num_steps": 10000},
+        # )
+        # self.curriculum.gripper_open = CurrTerm(
+        #     func=mdp.modify_reward_weight,
+        #     params={"term_name": "gripper_open", "weight": 0.0, "num_steps": 10000},
+        # )
+        # self.curriculum.enable_gripper_close_near = CurrTerm(
+        #     func=mdp.modify_reward_weight,
+        #     params={"term_name": "gripper_close_near", "weight": 1.0, "num_steps": 10000},
+        # )
+        # # Bring in goal tracking later to guide post-lift placement
+        # if hasattr(self.rewards, "object_goal_tracking"):
+        #     self.curriculum.enable_goal_tracking = CurrTerm(
+        #         func=mdp.modify_reward_weight,
+        #         params={"term_name": "object_goal_tracking", "weight": 8.0, "num_steps": 12000},
+        #     )
+        # if hasattr(self.rewards, "object_goal_tracking_fine_grained"):
+        #     self.curriculum.enable_goal_tracking_fine = CurrTerm(
+        #         func=mdp.modify_reward_weight,
+        #         params={"term_name": "object_goal_tracking_fine_grained", "weight": 5.0, "num_steps": 15000},
+        #     )
